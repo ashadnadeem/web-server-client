@@ -31,13 +31,13 @@ void err_exit(const char *fmt, ...)
     // print error message
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap);
-    fprint(stdout, "\n");
+    fprintf(stdout, "\n");
     fflush(stdout);
 
     if (errno_save != 0)
     {
         fprintf(stdout, "Error %d: %s\n", errno_save, strerror(errno_save));
-        fprintf(stout,"\n");
+        fprintf(stdout,"\n");
         fflush(stdout);
     }
     va_end(ap);
