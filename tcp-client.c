@@ -17,7 +17,7 @@
 #define SERVER_PORT 9999
 
 // buffer length
-#define MAXLINE 4096
+#define MAXLINE 900000
 #define SA struct sockaddr
 
 // display error message and exit
@@ -51,15 +51,21 @@ int main(int argc, char **argv){
     int sendbytes;
     struct sockaddr_in servaddr;
     char sendline[MAXLINE], recvline[MAXLINE];
-    char *web_page = "/";
+    char web_page[80];
 
     // check arguments
     if (argc < 2)
-        err_exit("usage: tcp-client <IP address> <Webpage>");
+        err_exit("usage: tcp-client <IP address> <WebpageName>\nExample: tcp-client 127.0.0.1 Google");
     
     // check webpage
-    if (argc == 3)
-        web_page = web_page + argv[2];
+    strcat(web_page, "/");
+    if (argc == 3){
+        printf("webpage requested: %s\n", web_page);
+        strcat(web_page, "webpages/");
+    	strcat(web_page, argv[2]);
+    	strcat(web_page, ".html");
+        printf("webpage requested: %s\n", web_page);
+    }
 
     // create socket, inet, tcp-stream, 0: use default protocol
     if( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -78,7 +84,7 @@ int main(int argc, char **argv){
     if(connect(sockfd, (SA *) &servaddr, sizeof(servaddr)) < 0)
         err_exit("connect error");
 
-    // prepare a message, ask for root directory
+    // prepare a message, ask for root directory or webpage
     sprintf(sendline, "GET %s HTTP/1.0\r\n\r\n", web_page);
     sendbytes = strlen(sendline);
 
