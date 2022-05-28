@@ -389,6 +389,7 @@ void serve_static(int out_fd, int in_fd, http_request *req, size_t total_size){
     }
 }
 
+// Process the incomming request by showing user their requested dir or file
 void process(int fd, struct sockaddr_in *clientaddr){
     printf("accept request, fd is %d, pid is %d\n", fd, getpid());
     http_request req;
@@ -397,12 +398,15 @@ void process(int fd, struct sockaddr_in *clientaddr){
     struct stat sbuf;
     int status = 200, ffd = open(req.filename, O_RDONLY, 0);
     if(ffd <= 0){
+        // Error in opening file
         status = 404;
         char *msg = "File not found";
         client_error(fd, status, "Not found", msg);
     } else {
+        // get file statisttics in sbuf
         fstat(ffd, &sbuf);
         if(S_ISREG(sbuf.st_mode)){
+            // if its registery
             if (req.end == 0){
                 req.end = sbuf.st_size;
             }
@@ -411,9 +415,12 @@ void process(int fd, struct sockaddr_in *clientaddr){
             }
             serve_static(fd, ffd, &req, sbuf.st_size);
         } else if(S_ISDIR(sbuf.st_mode)){
+            // if file is found
             status = 200;
+            // list the directory
             handle_directory_request(fd, ffd, req.filename);
         } else {
+            // error
             status = 400;
             char *msg = "Unknow Error";
             client_error(fd, status, "Error", msg);
@@ -433,8 +440,10 @@ int main(int argc, char** argv){
     socklen_t clientlen = sizeof clientaddr;
     if(argc == 2) {
         if(argv[1][0] >= '0' && argv[1][0] <= '9') {
+            // custom port as an argument
             default_port = atoi(argv[1]);
         } else {
+            // take path input
             path = argv[1];
             if(chdir(argv[1]) != 0) {
                 perror(argv[1]);
@@ -442,6 +451,7 @@ int main(int argc, char** argv){
             }
         }
     } else if (argc == 3) {
+        // custom port argument
         default_port = atoi(argv[2]);
         path = argv[1];
         if(chdir(argv[1]) != 0) {
@@ -449,33 +459,41 @@ int main(int argc, char** argv){
             exit(1);
         }
     }
-
+    // listen on the socket of the port
     listenfd = open_listenfd(default_port);
     if (listenfd > 0) {
         printf("listen on port %d, fd is %d\n", default_port, listenfd);
     } else {
+        // print error on opening socket
         perror("ERROR");
         exit(listenfd);
     }
     // Ignore SIGPIPE signal, so if browser cancels the request, it
     // won't kill the whole process.
     signal(SIGPIPE, SIG_IGN);
-
+    // open 10 forks to handle multiple client requests
     for(int i = 0; i < 10; i++) {
         int pid = fork();
-        if (pid == 0) {         //  child
+        if (pid == 0) {
+            // Child process
             while(1){
+                // accept the incomming connection from client
                 connfd = accept(listenfd, (SA *)&clientaddr, &clientlen);
+                // show the client their request
                 process(connfd, &clientaddr);
+                // close connection file descriptor
                 close(connfd);
             }
-        } else if (pid > 0) {   //  parent
+        } else if (pid > 0) {
+            // parent process
             printf("child pid is %d\n", pid);
         } else {
+            // error in forking
             perror("fork");
         }
     }
-
+    // After creating the forks
+    // check for incomming connections
     while(1){
         connfd = accept(listenfd, (SA *)&clientaddr, &clientlen);
         process(connfd, &clientaddr);
